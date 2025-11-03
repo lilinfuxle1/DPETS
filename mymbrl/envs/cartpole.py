@@ -3,10 +3,14 @@ from __future__ import print_function
 from __future__ import absolute_import
 
 import os
-
+import mujoco  
 import numpy as np
 from gym import utils
 from gym.envs.mujoco import mujoco_env
+# 在文件顶部的导入部分添加
+from gym.spaces import Box  # 如果使用的是旧版 gym
+# 或
+from gymnasium.spaces import Box  # 如果已迁移到 gymnasium
 import torch
 
 
@@ -14,11 +18,46 @@ class CartpoleEnv(mujoco_env.MujocoEnv, utils.EzPickle):
     PENDULUM_LENGTH = 0.6
     MODEL_IN, MODEL_OUT = 6, 4
     OBS_ADD_DIM = 1
+    metadata = {
+        "render_modes": ["human", "rgb_array", "depth_array"],
+        "render_fps": 25
+    }
+    
 
-    def __init__(self):
+    def __init__(self, seed=None):
+        # 1. 初始化EzPickle（保持不变）
         utils.EzPickle.__init__(self)
-        dir_path = os.path.dirname(os.path.realpath(__file__))
-        mujoco_env.MujocoEnv.__init__(self, '%s/assets/cartpole.xml' % dir_path, 2)
+        
+        # 2. 定义观测空间（提前定义，供父类初始化使用）
+        observation_space = Box(
+            low=-np.inf,
+            high=np.inf,
+            shape=(4,),  # Cartpole观测维度为4（位置、角度、速度、角速度）
+            dtype=np.float32
+        )
+        
+        # 3. 获取模型路径（XML文件位置）
+        dir_path = os.path.dirname(os.path.abspath(__file__))
+        model_path = f"{dir_path}/assets/cartpole.xml"
+        
+        # 4. 先调用父类（MujocoEnv）初始化！这一步会创建self.model和self.data
+        super().__init__(
+            model_path=model_path,
+            frame_skip=2,
+            observation_space=observation_space
+        )
+        
+        # 5. 处理随机种子（在父类初始化后设置，避免覆盖）
+        if seed is not None:
+            np.random.seed(seed)  # 设置numpy随机种子
+            try:
+                super().seed(seed)  # 尝试调用父类的seed方法（若存在）
+            except AttributeError:
+                pass  # 父类无seed方法时不报错
+        
+        # 6. （可选）检查并创建self.data（父类未自动创建时备用）
+        if not hasattr(self, 'data'):
+            self.data = mujoco.MjData(self.model)  # 此时self.model已存在（父类初始化过）
 
     def _step(self, a):
         self.do_simulation(a, self.frame_skip)
@@ -32,6 +71,9 @@ class CartpoleEnv(mujoco_env.MujocoEnv, utils.EzPickle):
 
         done = False
         return ob, reward, done, {'reward': reward}
+    def step(self, action):
+    # 直接转发到原有 _step 方法，参数和返回值保持一致
+        return self._step(action)
 
     def reset_model(self):
         qpos = self.init_qpos + np.random.normal(0, 0.1, np.shape(self.init_qpos))
@@ -40,7 +82,7 @@ class CartpoleEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         return self._get_obs()
 
     def _get_obs(self):
-        return np.concatenate([self.model.data.qpos, self.model.data.qvel]).ravel()
+        return np.concatenate([self.data.qpos, self.data.qvel]).ravel()
     
     
     @staticmethod

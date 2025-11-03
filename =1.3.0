@@ -1,0 +1,7 @@
+Looking in indexes: https://pypi.org/simple, https://pypi.ngc.nvidia.com
+Collecting sqlalchemy
+  Downloading sqlalchemy-2.0.44-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (9.5 kB)
+Collecting greenlet>=1 (from sqlalchemy)
+  Downloading greenlet-3.2.4-cp310-cp310-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl.metadata (4.1 kB)
+Requirement already satisfied: typing-extensions>=4.6.0 in /home/xie/miniconda3/envs/dpets/lib/python3.10/site-packages (from sqlalchemy) (4.15.0)
+Downloading sqlalchemy-2.0.44-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (3.2 MB)

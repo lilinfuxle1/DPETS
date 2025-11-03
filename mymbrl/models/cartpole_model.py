@@ -1,5 +1,6 @@
 import numpy as np
-import gym
+import gymnasium as gym
+from gymnasium.envs.mujoco import MujocoEnv  # 直接导入Gymnasium的MujocoEnv
 import torch
 from torch import nn as nn
 from torch.nn import functional as F
