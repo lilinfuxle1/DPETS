@@ -7,8 +7,20 @@ Code to reproduce the experiments in [Practical Probabilistic Model-based Reinfo
 Please feel free to contact us regarding to the details of implementing DPETS. (Wenjun Huang: wj.huang1@siat.ac.cn Yunduan Cui: cuiyunduan@gmail.com)
 ## Requirements
 
+First, install PyTorch by following the instructions on the [official website](https://pytorch.org/get-started/locally/). We recommend using PyTorch 2.9.0 and mujoco 3.3.7.
+```bash
+pip install torch
+```
 
- `pip install -r requirements.txt`.
+```bash
+pip install mujoco
+```
+
+Finally, install the required packages by running:
+
+```bash
+pip install -r requirements.txt
+```
 
 ## Running Experiments
 
