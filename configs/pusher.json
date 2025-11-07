@@ -1,0 +1,22 @@
+{
+    "env": "pusher",
+    "agent": {
+        "name": "dpets",
+        "model": "pusher_model",
+        "optimizer": "CEM",
+        "predict_length": 30,  
+        "num_particles": 25,  
+        "ensemble_size": 5,
+        "dropout": 0.1,  
+        "dropout_mask_nums": 5,
+        "train_epoch": 15  
+    },
+    "experiment": {
+        "name": "MBRL",
+        "horizon": 300,
+        "random_horizon": 300,
+        "ntrain_iters": 15
+    },
+    "device": "cuda",
+    "random_seed": 0
+}

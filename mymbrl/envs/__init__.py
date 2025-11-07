@@ -7,6 +7,8 @@ import importlib
 def get_item(name):
     dict = {
         "cartpole": "CartpoleEnv"
+        , "half_cheetah": "HalfCheetahEnv"
+        , "pusher": "PusherEnv"
     }
 
     module = importlib.import_module("mymbrl.envs."+name)

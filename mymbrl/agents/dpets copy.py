@@ -161,47 +161,29 @@ class DPETS(Agent):
             param.requires_grad = False
     
     def sample(self, states):
+
         self.model.eval()
-        # 适配新版Gym：确保输入状态是numpy数组（避免张量/列表格式）
-        states = np.atleast_1d(states).astype(np.float32)
         action = self.controller.sample(states, self.exp_epoch, self.exp_step)
-        # 适配新版Gym：确保输出动作是1维numpy数组（符合env.action_space要求）
-        return np.atleast_1d(action).astype(np.float32)
+        return action
 
     def add_data(self, states, actions, indexs=[]):
-        # 适配新版Gym：确保输入是numpy数组，统一数据类型
-        states = np.atleast_2d(states).astype(np.float32)
-        actions = np.atleast_2d(actions).astype(np.float32)
-        print(f"Debug: states shape: {states.shape}, actions shape: {actions.shape}")  # 添加调试信息
         assert states.shape[0] == actions.shape[0] + 1
-        # 处理空序列边界情况（新版Gym可能出现短序列）
-        if states.shape[0] < 3:
-            return  # 不足3个状态时跳过（避免states[:-2]为空）
         x = np.concatenate((self.env.obs_preproc(states[:-2]), actions[:-1]), axis=1)
         y = self.env.targ_proc(states[:-2], states[1:-1])
         a = actions[1:]
         y2 = self.env.targ_proc(states[1:-1], states[2:])
         x2 = states[:-2]
-        print(f"Debug: x shape: {x.shape}, y shape: {y.shape}, a shape: {a.shape}, y2 shape: {y2.shape}, x2 shape: {x2.shape}")  # 添加调试信息
+
         self.dataloader.push(x, y, a, y2, x2)
     
     def prediction(self, states, action, t=0, sample_epoch=0, print_info=False):
-        if isinstance(action, torch.Tensor):
-            action = action.detach().cpu()  # 新增：CUDA张量→CPU张量（detach避免梯度问题）
-        if isinstance(states, torch.Tensor):
-            states = states.detach().cpu()  # 新增：同理处理states，避免后续报错
-        # 适配新版Gym：统一输入为numpy数组后再转张量
-        if not isinstance(action, np.ndarray):
-            action = np.atleast_1d(action).astype(np.float32)
-        if not isinstance(states, np.ndarray):
-            states = np.atleast_1d(states).astype(np.float32)
-        
+
         if not isinstance(action, torch.Tensor):
             action = torch.tensor(action, device=self.config.device).float()
         if not isinstance(states, torch.Tensor):
             states = torch.tensor(states, device=self.config.device).float()
         if(states.dim() == 1):
-            states = states.unsqueeze(0).expand(self.config.agent.num_particles, -1).float()  # 修正：去掉多余的1维（适配新版观测形状）
+            states = states.unsqueeze(0).expand(self.config.agent.num_particles, 1).float()
         if(action.dim() == 1):
             action = action.unsqueeze(0).expand(states.shape[0], -1).float()
 

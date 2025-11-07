@@ -3,51 +3,91 @@ from __future__ import print_function
 from __future__ import absolute_import
 
 import os
-
+from gymnasium.spaces import Box  
 import numpy as np
-from gym import utils
-from gym.envs.mujoco import mujoco_env
+from gymnasium.envs.mujoco import MujocoEnv
+
+from gymnasium import utils
 import torch
 
 
-class HalfCheetahEnv(mujoco_env.MujocoEnv, utils.EzPickle):
+class HalfCheetahEnv(MujocoEnv, utils.EzPickle):
     
     MODEL_IN, MODEL_OUT = 24, 18
-    
-    def __init__(self):
-        self.prev_qpos = None
-        dir_path = os.path.dirname(os.path.realpath(__file__))
-        mujoco_env.MujocoEnv.__init__(self, '%s/assets/half_cheetah.xml' % dir_path, 5)
+
+    metadata = {
+        "render_modes": ["human", "rgb_array", "depth_array"],
+        "render_fps": 20,
+    }
+
+    def __init__(self, seed=None):
         utils.EzPickle.__init__(self)
 
-    def _step(self, action):
-        self.prev_qpos = np.copy(self.model.data.qpos.flat)
+        observation_space = Box(
+            low=-np.inf,
+            high=np.inf,
+            shape=(24,),
+            dtype=np.float32,
+        )
+
+        dir_path = os.path.dirname(os.path.abspath(__file__))
+        model_path = f"{dir_path}/assets/half_cheetah.xml"
+
+        super().__init__(
+            model_path=model_path,
+            frame_skip=5,
+            observation_space=observation_space,
+            render_mode=None,
+        )
+
+
+    
+    def step(self, action):
+        self.prev_qpos = np.copy(self.data.qpos.flat)
         self.do_simulation(action, self.frame_skip)
         ob = self._get_obs()
 
         reward_ctrl = -0.1 * np.square(action).sum()
         reward_run = ob[0] - 0.0 * np.square(ob[2])
         reward = reward_run + reward_ctrl
-        done = False
-        
-        return ob, reward, done, {}
 
-    def get_x(self):
-        return self.model.data.qpos.flat[0]
+        terminated = False
+        truncated = False
+        info = {}
+
+        return ob, reward, terminated, truncated, info
     
-    def _get_obs(self):
-        return np.concatenate([
-            (self.model.data.qpos.flat[:1] - self.prev_qpos[:1]) / self.dt,
-            self.model.data.qpos.flat[1:],
-            self.model.data.qvel.flat,
-        ])
-
+    # def reset(self, *, seed=None, options=None):
+    #     super().reset(seed=seed)
+    #     qpos = self.init_qpos + np.random.normal(loc=0, scale=0.001, size=self.model.nq)
+    #     qvel = self.init_qvel + np.random.normal(loc=0, scale=0.001, size=self.model.nv)
+    #     self.set_state(qpos, qvel)
+    #     self.prev_qpos = np.copy(self.model.data.qpos.flat)
+    #     obs = self._get_obs()
+    #     info = {}
+    #     return obs, info
+    
     def reset_model(self):
         qpos = self.init_qpos + np.random.normal(loc=0, scale=0.001, size=self.model.nq)
         qvel = self.init_qvel + np.random.normal(loc=0, scale=0.001, size=self.model.nv)
         self.set_state(qpos, qvel)
-        self.prev_qpos = np.copy(self.model.data.qpos.flat)
+        self.prev_qpos = np.copy(self.data.qpos.flat)
         return self._get_obs()
+    def reset(self, *, seed=None, options=None):
+        super().reset(seed=seed)
+        obs = self._get_obs()
+        info = {}
+        return obs, info
+
+    def _get_obs(self):
+        return np.concatenate([
+            (self.data.qpos.flat[:1] - self.prev_qpos[:1]) / self.dt,
+            self.data.qpos.flat[1:],
+            self.data.qvel.flat,
+        ])
+
+    def get_x(self):
+        return self.data.qpos.flat[0]
 
     def viewer_setup(self):
         self.viewer.cam.distance = self.model.stat.extent * 0.25

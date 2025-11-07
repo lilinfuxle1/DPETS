@@ -1,20 +1,17 @@
 from __future__ import division
 from __future__ import print_function
 from __future__ import absolute_import
-
+import random  # 新增：导入random模块，确保全量种子设置
 import os
 import mujoco  
 import numpy as np
-from gym import utils
-from gym.envs.mujoco import mujoco_env
-# 在文件顶部的导入部分添加
-from gym.spaces import Box  # 如果使用的是旧版 gym
-# 或
-from gymnasium.spaces import Box  # 如果已迁移到 gymnasium
+from gymnasium import utils  
+from gymnasium.envs.mujoco import MujocoEnv  
+from gymnasium.spaces import Box  
 import torch
 
 
-class CartpoleEnv(mujoco_env.MujocoEnv, utils.EzPickle):
+class CartpoleEnv(MujocoEnv, utils.EzPickle):
     PENDULUM_LENGTH = 0.6
     MODEL_IN, MODEL_OUT = 6, 4
     OBS_ADD_DIM = 1
@@ -25,39 +22,28 @@ class CartpoleEnv(mujoco_env.MujocoEnv, utils.EzPickle):
     
 
     def __init__(self, seed=None):
-        # 1. 初始化EzPickle（保持不变）
-        utils.EzPickle.__init__(self)
         
-        # 2. 定义观测空间（提前定义，供父类初始化使用）
+        utils.EzPickle.__init__(self)
         observation_space = Box(
             low=-np.inf,
             high=np.inf,
-            shape=(4,),  # Cartpole观测维度为4（位置、角度、速度、角速度）
+            shape=(4,),  
             dtype=np.float32
         )
-        
-        # 3. 获取模型路径（XML文件位置）
+
         dir_path = os.path.dirname(os.path.abspath(__file__))
         model_path = f"{dir_path}/assets/cartpole.xml"
-        
-        # 4. 先调用父类（MujocoEnv）初始化！这一步会创建self.model和self.data
+
         super().__init__(
             model_path=model_path,
             frame_skip=2,
-            observation_space=observation_space
+            observation_space=observation_space,
         )
         
-        # 5. 处理随机种子（在父类初始化后设置，避免覆盖）
-        if seed is not None:
-            np.random.seed(seed)  # 设置numpy随机种子
-            try:
-                super().seed(seed)  # 尝试调用父类的seed方法（若存在）
-            except AttributeError:
-                pass  # 父类无seed方法时不报错
-        
-        # 6. （可选）检查并创建self.data（父类未自动创建时备用）
-        if not hasattr(self, 'data'):
-            self.data = mujoco.MjData(self.model)  # 此时self.model已存在（父类初始化过）
+        # if seed is not None:
+        #     np.random.seed(seed)
+        #     random.seed(seed)  # 新增：设置Python原生随机种子
+
 
     def _step(self, a):
         self.do_simulation(a, self.frame_skip)
@@ -65,15 +51,23 @@ class CartpoleEnv(mujoco_env.MujocoEnv, utils.EzPickle):
 
         cost_lscale = CartpoleEnv.PENDULUM_LENGTH
         reward = np.exp(
-            -np.sum(np.square(self._get_ee_pos(ob) - np.array([0.0, CartpoleEnv.PENDULUM_LENGTH]))) / (cost_lscale ** 2)
+            -np.sum(np.square(self._get_ee_pos(ob) - np.array([0.0, CartpoleEnv.PENDULUM_LENGTH]))) / (cost_lscale **2)
         )
         reward -= 0.01 * np.sum(np.square(a))
 
         done = False
-        return ob, reward, done, {'reward': reward}
+        info = {'reward': reward}  # 定义info字典，存储额外信息
+        # _step只返回基础四要素（兼容内部逻辑）
+        return ob.astype(np.float32), reward.astype(np.float32), done, info
+
     def step(self, action):
-    # 直接转发到原有 _step 方法，参数和返回值保持一致
-        return self._step(action)
+        # 调用_step获取基础数据
+        ob, reward, done, info = self._step(action)
+        # 适配新版Gymnasium：拆分done为terminated（任务完成）和truncated（超时截断）
+        terminated = done  # cartpole无特殊终止条件，沿用done逻辑
+        truncated = False  # 未设置超时，默认不截断
+        # 返回新版要求的五要素
+        return ob, reward, terminated, truncated, info
 
     def reset_model(self):
         qpos = self.init_qpos + np.random.normal(0, 0.1, np.shape(self.init_qpos))
