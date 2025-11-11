@@ -26,7 +26,7 @@ class HalfCheetahEnv(MujocoEnv, utils.EzPickle):
         observation_space = Box(
             low=-np.inf,
             high=np.inf,
-            shape=(24,),
+            shape=(18,),
             dtype=np.float32,
         )
 

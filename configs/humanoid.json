@@ -1,0 +1,25 @@
+{
+    "env": "humanoid",
+    "agent": {
+      "name": "dpets",
+      "model": "humanoid_model",
+      "optimizer": "CEM",
+      "predict_length": 60,
+      "num_particles": 20,
+      "ensemble_size": 5,
+      "dropout": 0.05,
+      "dropout_mask_nums": 5,
+      "train_epoch": 10,
+      "layers_num": 4,
+      "neuron_num": 200,
+      "learning_rate": 0.001
+    },
+    "experiment": {
+      "name": "MBRL",
+      "horizon": 1000,
+      "random_horizon": 1000,
+      "ntrain_iters": 10
+    },
+    "device": "cuda",
+    "random_seed": 0
+}

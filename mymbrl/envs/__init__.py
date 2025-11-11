@@ -9,6 +9,11 @@ def get_item(name):
         "cartpole": "CartpoleEnv"
         , "half_cheetah": "HalfCheetahEnv"
         , "pusher": "PusherEnv"
+        , "ant": "AntEnv"
+        , "hopper": "HopperEnv"
+        ,"walker2d": "Walker2dEnv"
+        ,"humanoid": "humanoidEnv"
+        
     }
 
     module = importlib.import_module("mymbrl.envs."+name)

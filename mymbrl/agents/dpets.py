@@ -171,6 +171,9 @@ class DPETS(Agent):
     def add_data(self, states, actions, indexs=[]):
         # 适配新版Gym：确保输入是numpy数组，统一数据类型
         states = np.atleast_2d(states).astype(np.float32)
+        print(f"Debug: states shape: {states.shape}, actions shape: {actions.shape}")  # 添加调试信息
+        print("Example raw obs:", states[0])
+        print("Shape of obs:", states.shape)
         actions = np.atleast_2d(actions).astype(np.float32)
         print(f"Debug: states shape: {states.shape}, actions shape: {actions.shape}")  # 添加调试信息
         assert states.shape[0] == actions.shape[0] + 1
@@ -184,6 +187,32 @@ class DPETS(Agent):
         x2 = states[:-2]
         print(f"Debug: x shape: {x.shape}, y shape: {y.shape}, a shape: {a.shape}, y2 shape: {y2.shape}, x2 shape: {x2.shape}")  # 添加调试信息
         self.dataloader.push(x, y, a, y2, x2)
+    # def add_data(self, states, actions, indexs=[]):
+    #     # 确保输入是 numpy 数组
+    #     states = np.atleast_2d(states).astype(np.float32)
+    #     actions = np.atleast_2d(actions).astype(np.float32)
+
+    #     # 保证序列长度足够
+    #     assert states.shape[0] == actions.shape[0] + 1
+    #     if states.shape[0] < 3:
+    #         return  # 不足3个状态时跳过
+
+    #     # 统一用环境的预处理函数
+    #     preproc_states = self.env.obs_preproc(states)
+
+    #     # 构造训练数据
+    #     x = np.concatenate((preproc_states[:-2], actions[:-1]), axis=1)
+    #     y = self.env.targ_proc(preproc_states[:-2], preproc_states[1:-1])
+    #     a = actions[1:]
+    #     y2 = self.env.targ_proc(preproc_states[1:-1], preproc_states[2:])
+    #     x2 = preproc_states[:-2]
+
+    #     # 调试信息（可选）
+    #     print(f"[add_data] x:{x.shape}, y:{y.shape}, a:{a.shape}, y2:{y2.shape}, x2:{x2.shape}")
+
+    #     # 推入数据加载器
+    #     self.dataloader.push(x, y, a, y2, x2)
+
     
     def prediction(self, states, action, t=0, sample_epoch=0, print_info=False):
         if isinstance(action, torch.Tensor):
@@ -220,6 +249,8 @@ class DPETS(Agent):
         predictions = mean
         predictions = self._flatten_to_matrix(predictions)
         return self.env.obs_postproc(states, predictions)
+  
+
     
     def _expand_to_ts_format(self, mat):
         dim = mat.shape[-1]
