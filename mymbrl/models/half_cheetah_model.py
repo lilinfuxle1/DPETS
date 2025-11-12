@@ -38,6 +38,10 @@ class HalfCheetahModel(nn.Module):
         self.hidden1_mask_select = None
         self.hidden2_mask_select = None
         self.hidden3_mask_select = None
+        self.hidden4_mask = None
+        self.hidden5_mask = None
+        self.hidden4_mask_select = None
+        self.hidden5_mask_select = None
 
         self.in_features = in_features
         self.out_features = out_features
@@ -46,7 +50,9 @@ class HalfCheetahModel(nn.Module):
         self.lin0_w, self.lin0_b = get_affine_params(ensemble_size, in_features, hidden_size)
         self.lin1_w, self.lin1_b = get_affine_params(ensemble_size, hidden_size, hidden_size)
         self.lin2_w, self.lin2_b = get_affine_params(ensemble_size, hidden_size, hidden_size)
-        self.lin3_w, self.lin3_b = get_affine_params(ensemble_size, hidden_size, out_features)
+        self.lin3_w, self.lin3_b = get_affine_params(ensemble_size, hidden_size, hidden_size)
+        self.lin4_w, self.lin4_b = get_affine_params(ensemble_size, hidden_size, hidden_size)
+        self.lin5_w, self.lin5_b = get_affine_params(ensemble_size, hidden_size, out_features)
 
         # 输入归一化参数（均值和标准差），初始化为0和1
         self.inputs_mu = nn.Parameter(torch.zeros(in_features).to(device), requires_grad=False)
@@ -57,11 +63,14 @@ class HalfCheetahModel(nn.Module):
         self.register_buffer('min_logvar', - torch.ones(1, out_features // 2, dtype=torch.float32).to(device) * 10.0)
 
     def compute_decays(self):
-        lin0_decays = 0.0002 * (self.lin0_w ** 2).sum() / 2.0
-        lin1_decays = 0.0005 * (self.lin1_w ** 2).sum() / 2.0
-        lin2_decays = 0.0005 * (self.lin2_w ** 2).sum() / 2.0
-        lin3_decays = 0.001 * (self.lin3_w ** 2).sum() / 2.0
-        return lin0_decays + lin1_decays + lin2_decays + lin3_decays
+            # 更新权重衰减计算以包含新层
+            lin0_decays = 0.0002 * (self.lin0_w ** 2).sum() / 2.0
+            lin1_decays = 0.0005 * (self.lin1_w ** 2).sum() / 2.0
+            lin2_decays = 0.0005 * (self.lin2_w ** 2).sum() / 2.0
+            lin3_decays = 0.0005 * (self.lin3_w ** 2).sum() / 2.0
+            lin4_decays = 0.0005 * (self.lin4_w ** 2).sum() / 2.0
+            lin5_decays = 0.001 * (self.lin5_w ** 2).sum() / 2.0
+            return lin0_decays + lin1_decays + lin2_decays + lin3_decays + lin4_decays + lin5_decays
 
     def forward(self, inputs, ret_logvar=False, open_dropout=True):
         if self.fit_input:
@@ -83,6 +92,18 @@ class HalfCheetahModel(nn.Module):
             inputs = inputs * self.hidden3_mask_select
 
         inputs = inputs.matmul(self.lin3_w) + self.lin3_b
+        inputs = swish(inputs)
+        if self.dropout and open_dropout:
+            inputs = inputs * self.hidden4_mask_select
+
+        inputs = inputs.matmul(self.lin4_w) + self.lin4_b
+        inputs = swish(inputs)
+        if self.dropout and open_dropout:
+            inputs = inputs * self.hidden5_mask_select
+
+        # 输出层
+        inputs = inputs.matmul(self.lin5_w) + self.lin5_b
+
 
         mean = inputs[:, :, :self.out_features // 2]
         logvar = inputs[:, :, self.out_features // 2:]
@@ -105,6 +126,8 @@ class HalfCheetahModel(nn.Module):
         self.hidden1_mask_select = torch.index_select(self.hidden1_mask, 1, indexs)
         self.hidden2_mask_select = torch.index_select(self.hidden2_mask, 1, indexs)
         self.hidden3_mask_select = torch.index_select(self.hidden3_mask, 1, indexs)
+        self.hidden4_mask_select = torch.index_select(self.hidden4_mask, 1, indexs)
+        self.hidden5_mask_select = torch.index_select(self.hidden5_mask, 1, indexs)
 
     def sample_new_mask(self, dropout_mask_nums=None):
         self.dropout = True
@@ -119,6 +142,12 @@ class HalfCheetahModel(nn.Module):
             torch.ones(self.num_nets, self.dropout_mask_nums, self.hidden_size) * (1 - drop_prob)
         ).to(device)
         self.hidden3_mask = torch.bernoulli(
+            torch.ones(self.num_nets, self.dropout_mask_nums, self.hidden_size) * (1 - drop_prob)
+        ).to(device)
+        self.hidden4_mask = torch.bernoulli(
+            torch.ones(self.num_nets, self.dropout_mask_nums, self.hidden_size) * (1 - drop_prob)
+        ).to(device)
+        self.hidden5_mask = torch.bernoulli(
             torch.ones(self.num_nets, self.dropout_mask_nums, self.hidden_size) * (1 - drop_prob)
         ).to(device)
 

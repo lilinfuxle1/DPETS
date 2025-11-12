@@ -15,7 +15,9 @@ class MBRL:
         self.env = Env()  # 不传seed
         self.env.reset(seed=config.random_seed)  # 创建后调用reset传seed  # 如需渲染可加：render_mode="human"
         self.writer = writer
-        
+        if hasattr(self.env, '_terminate_when_unhealthy'):
+            self.env._terminate_when_unhealthy = False
+            print(f"已禁用 {config.env} 环境的early stop机制")
         Agent = agents.get_item(config.agent.name)
         self.agent = Agent(config, self.env, writer)
         self.config = config

@@ -4,15 +4,12 @@
     "name": "dpets",
     "model": "hopper_model",
     "optimizer": "CEM",
-    "predict_length": 25,
-    "num_particles": 20,
-    "ensemble_size": 5,
-    "dropout": 0.05,
-    "dropout_mask_nums": 5,
-    "train_epoch": 10,
-    "layers_num": 4,
-    "neuron_num": 200,
-    "learning_rate": 0.001
+    "predict_length": 90,  
+    "num_particles": 20,   
+    "ensemble_size": 5,    
+    "dropout": 0.05,       
+    "dropout_mask_nums": 5,  
+    "train_epoch": 10
   },
   "experiment": {
     "name": "MBRL",

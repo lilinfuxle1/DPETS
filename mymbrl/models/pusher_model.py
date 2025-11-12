@@ -47,7 +47,7 @@ class PusherModel(nn.Module):
 
         # 固定 max_logvar 和 min_logvar 不参与训练，避免数值漂移导致NaN
         self.register_buffer('max_logvar', torch.ones(1, out_features // 2, dtype=torch.float32).to(device) / 2.0)
-        self.register_buffer('min_logvar', - torch.ones(1, out_features // 2, dtype=torch.float32).to(device) * 10.0)
+        self.register_buffer('min_logvar', - torch.ones(1, out_features // 2, dtype=torch.float32).to(device) * 0.5)
     
     def compute_decays(self):
         lin0_decays = 0.0002 * (self.lin0_w **2).sum() / 2.0

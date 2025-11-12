@@ -1,22 +1,22 @@
 {
-    "env": "half_cheetah",
-    "agent": {
-        "name": "dpets",
-        "model": "half_cheetah_model",
-        "optimizer": "CEM",
-        "predict_length": 35,  
-        "num_particles": 30,
-        "ensemble_size": 6,  
-        "dropout": 0.15,
-        "dropout_mask_nums": 6,  
-        "train_epoch": 20
-    },
-    "experiment": {
-        "name": "MBRL",
-        "horizon": 500,
-        "random_horizon": 500,
-        "ntrain_iters": 20
-    },
-    "device": "cuda",
-    "random_seed": 0
+  "env": "half_cheetah",
+  "agent": {
+    "name": "dpets",
+    "model": "half_cheetah_model",
+    "optimizer": "CEM",
+    "predict_length": 30,  
+    "num_particles": 30,   
+    "ensemble_size": 5,    
+    "dropout": 0.15,       
+    "dropout_mask_nums": 5,  
+    "train_epoch": 20
+  },
+  "experiment": {
+    "name": "MBRL",
+    "horizon": 1000,
+    "random_horizon": 500,
+    "ntrain_iters": 20
+  },
+  "device": "cuda",
+  "random_seed": 0
 }

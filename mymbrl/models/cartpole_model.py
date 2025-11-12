@@ -46,7 +46,7 @@ class CartpoleModel(nn.Module):
         self.inputs_sigma = nn.Parameter(torch.zeros(in_features).to(device), requires_grad=False)
 
         self.max_logvar = nn.Parameter(torch.ones(1, out_features // 2, dtype=torch.float32).to(device) / 2.0)
-        self.min_logvar = nn.Parameter(- torch.ones(1, out_features // 2, dtype=torch.float32).to(device) * 10.0)
+        self.min_logvar = nn.Parameter(- torch.ones(1, out_features // 2, dtype=torch.float32).to(device) * 1.0)
     
     def compute_decays(self):
 

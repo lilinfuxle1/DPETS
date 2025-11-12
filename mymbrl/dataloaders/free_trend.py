@@ -30,7 +30,7 @@ class FreeTrend(data.Dataset):
             x_all.append(x)
         return x_all
     
-    def get_x_y_all(self):
+    def get_x_y_all(self): #提高性能，有点拉了
         x_all = []
         y_all = []
         a_all = []
@@ -43,6 +43,11 @@ class FreeTrend(data.Dataset):
             a_all.append(a)
             y2_all.append(y2)
             x2_all.append(x2)
+        x_all = np.array(x_all)
+        y_all = np.array(y_all)
+        a_all = np.array(a_all)
+        y2_all = np.array(y2_all)
+        x2_all = np.array(x2_all)
         return torch.tensor(x_all, dtype=torch.float32), torch.tensor(y_all, dtype=torch.float32), torch.tensor(a_all, dtype=torch.float32), torch.tensor(y2_all, dtype=torch.float32), torch.tensor(x2_all, dtype=torch.float32)
 
     def shuffle(self):

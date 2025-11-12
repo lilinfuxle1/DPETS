@@ -4,15 +4,12 @@
     "name": "dpets",
     "model": "walker2d_model",
     "optimizer": "CEM",
-    "predict_length": 30,
+    "predict_length": 60,
     "num_particles": 20,
     "ensemble_size": 5,
     "dropout": 0.05,
     "dropout_mask_nums": 5,
-    "train_epoch": 10,
-    "layers_num": 4,
-    "neuron_num": 200,
-    "learning_rate": 0.001
+    "train_epoch": 10
   },
   "experiment": {
     "name": "MBRL",

@@ -20,7 +20,7 @@ import datetime
 import mymbrl.optimizers as optimizers
 from mymbrl.utils import shuffle_rows
 
-class DPETS(Agent):
+class DPETSChunk(Agent):
 
     def __init__(self, config, env, writer):
         """
@@ -30,6 +30,10 @@ class DPETS(Agent):
         self.env = env
         self.writer = writer
         self.exp_epoch = 0
+        self.chunk_size = self.config.agent.action_chunk_size
+        self.num_chunks = self.config.agent.num_chunks
+        self._chunk_actions = []          # 缓存当前块动作
+        self._chunk_idx = 0     
         
         Model = models.get_item(config.agent.model)
         
@@ -119,13 +123,13 @@ class DPETS(Agent):
                 x, y, a, y2, x2 = x.to(self.config.device), y.to(self.config.device), a.to(self.config.device), y2.to(self.config.device), x2.to(self.config.device)
                 
                 loss = self.config.agent.dynamics_weight_decay_rate * dynamics_model.compute_decays()
-                loss += 0.1*0.2 * (dynamics_model.max_logvar.sum() - dynamics_model.min_logvar.sum())
+                loss += 0.1*0.005 * (dynamics_model.max_logvar.sum() - dynamics_model.min_logvar.sum())
                 mean, logvar = dynamics_model(x, ret_logvar=True)
 
                 inv_var = torch.exp(-logvar)
                 mes_loss = ((mean - y) ** 2)
                 mes_loss_sum = mes_loss.mean(-1).mean(-1).sum()
-                train_losses = 0.5*(mes_loss * inv_var + logvar)
+                train_losses = mes_loss * inv_var + logvar
 
                 train_losses = train_losses.mean(-1).mean(-1).sum()
                 loss += train_losses
@@ -142,27 +146,17 @@ class DPETS(Agent):
                 
                 mes_loss2 = ((mean2 - new_y2) ** 2)
                 mes_loss_sum2 = mes_loss2.mean(-1).mean(-1).sum()
-                train_losses2 = 0.5*(mes_loss2 * inv_var2 + logvar2) #勘误
+                train_losses2 = mes_loss2 * inv_var2 + logvar2
                 train_losses2 = train_losses2.mean(-1).mean(-1).sum()
                 loss += train_losses2
-                loss += 3.14 #添加偏移量
+
                 loss.backward()
                 nn.utils.clip_grad_norm_(dynamics_model.parameters(), max_norm=20, norm_type=2)
                 dynamics_optimizer.step()
                 dynamics_optimizer.zero_grad()
                 i += 1
                 if i % 50 == 0:
-                    logvar_min = logvar.min().item()
-                    logvar_max = logvar.max().item()
-                    logvar_mean = logvar.mean().item()
-                    logvar2_min = logvar2.min().item()
-                    logvar2_max = logvar2.max().item()
-                    logvar2_mean = logvar2.mean().item()
-                    print(i, 'loss', loss.item(), 
-                          'mloss1', mes_loss_sum.item(), 'mloss2', mes_loss_sum2.item(),
-                          'logvar_min', logvar_min, 'logvar_max', logvar_max, 'logvar_mean', logvar_mean,
-                          'logvar2_min', logvar2_min, 'logvar2_max', logvar2_max, 'logvar2_mean', logvar2_mean)
-
+                    print(i, 'loss', loss.item(), 'mloss1', mes_loss_sum.item(), 'mloss2', mes_loss_sum2.item())
 
         if self.exp_epoch in self.config.agent.lr_scheduler:
             self.dynamics_scheduler.step()
@@ -172,11 +166,17 @@ class DPETS(Agent):
     
     def sample(self, states):
         self.model.eval()
-        # 适配新版Gym：确保输入状态是numpy数组（避免张量/列表格式）
         states = np.atleast_1d(states).astype(np.float32)
-        action = self.controller.sample(states, self.exp_epoch, self.exp_step)
-        # 适配新版Gym：确保输出动作是1维numpy数组（符合env.action_space要求）
-        return np.atleast_1d(action).astype(np.float32)
+
+        if len(self._chunk_actions) > 0:
+            action = self._chunk_actions.pop(0)
+            return np.atleast_1d(action).astype(np.float32)
+
+        # 当前块动作用控制器规划
+        action_seq = self.controller.sample(states, self.exp_epoch, self.exp_step)
+        # 控制器返回的是一整块动作序列，缓存剩余动作（去掉第一个）
+        self._chunk_actions = list(action_seq[1:])
+        return np.atleast_1d(action_seq[0]).astype(np.float32)
 
     def add_data(self, states, actions, indexs=[]):
         # 适配新版Gym：确保输入是numpy数组，统一数据类型
@@ -225,35 +225,37 @@ class DPETS(Agent):
 
     
     def prediction(self, states, action, t=0, sample_epoch=0, print_info=False):
+        # 适配短轨迹预测，使用chunk_size替代predict_length
+        # ...其余逻辑不变...
+        chunk_size = self.chunk_size
         if isinstance(action, torch.Tensor):
-            action = action.detach().cpu()  # 新增：CUDA张量→CPU张量（detach避免梯度问题）
+            action = action.detach().cpu()
         if isinstance(states, torch.Tensor):
-            states = states.detach().cpu()  # 新增：同理处理states，避免后续报错
-        # 适配新版Gym：统一输入为numpy数组后再转张量
+            states = states.detach().cpu()
         if not isinstance(action, np.ndarray):
             action = np.atleast_1d(action).astype(np.float32)
         if not isinstance(states, np.ndarray):
             states = np.atleast_1d(states).astype(np.float32)
-        
+
         if not isinstance(action, torch.Tensor):
             action = torch.tensor(action, device=self.config.device).float()
         if not isinstance(states, torch.Tensor):
             states = torch.tensor(states, device=self.config.device).float()
-        if(states.dim() == 1):
-            states = states.unsqueeze(0).expand(self.config.agent.num_particles, -1).float()  # 修正：去掉多余的1维（适配新版观测形状）
-        if(action.dim() == 1):
+
+        if states.dim() == 1:
+            states = states.unsqueeze(0).expand(self.config.agent.num_particles, -1).float()
+        if action.dim() == 1:
             action = action.unsqueeze(0).expand(states.shape[0], -1).float()
 
         proc_obs = self.env.obs_preproc(states)
-
         proc_obs = self._expand_to_ts_format(proc_obs)
         action = self._expand_to_ts_format(action)
 
         inputs = torch.cat((proc_obs, action), dim=-1)
-        net_particles_batch = inputs.shape[1]
-        
-        if net_particles_batch != self.model.batch_size:
-            self.model.select_mask(net_particles_batch)
+
+        if inputs.shape[1] != self.model.batch_size:
+            self.model.select_mask(inputs.shape[1])
+
         mean, var = self.model(inputs)
 
         predictions = mean
